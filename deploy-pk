@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-# soundness – root-safe script to install Soundness and generate/export key
-
+# soundness – script to install Soundness and generate/export key
 set -euo pipefail
 
-# Use explicit home directory
-USER_HOME="${HOME:-/root}"
-SOUNDNESS_PATH="$USER_HOME/.soundnessup/bin"
-CARGO_ENV="$USER_HOME/.cargo/env"
-
-# 1. Confirm
 read -r -p "This will update your system and install Soundness. Continue? [y/N] " reply
 [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]] || { echo "Aborted."; exit 1; }
 
@@ -17,43 +10,42 @@ apt update && apt upgrade -y
 apt install -y build-essential protobuf-compiler curl wget pkg-config \
     libcrypto++-dev libc6-dev openssl libssl-dev
 
-# 2. Install Soundness
+# 1. Install soundnessup
 echo "==> Installing soundnessup …"
 curl -sSL https://raw.githubusercontent.com/soundnesslabs/soundness-layer/main/soundnessup/install | bash
 
-# 3. Manually add soundnessup to path for current session
-export PATH="$SOUNDNESS_PATH:$PATH"
-
-# 4. Install Rust
+# 2. Install Rust
 echo "==> Installing Rust …"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- -y
-# source cargo only if file exists
-if [ -f "$CARGO_ENV" ]; then
-    source "$CARGO_ENV"
-else
-    echo "ERROR: Rust env not found at $CARGO_ENV"
-    exit 1
-fi
 
-# 5. Run soundnessup commands
+# 3. Source env files to get Rust + soundnessup working
+echo "==> Sourcing shell environment …"
+source "$HOME/.cargo/env"
+source "$HOME/.bashrc" || true  # avoid crash from PS1 errors
+
+# 4. Ensure PATHs are persistent
+grep -q 'soundnessup/bin' "$HOME/.bashrc" || echo 'export PATH="$HOME/.soundnessup/bin:$PATH"' >> "$HOME/.bashrc"
+grep -q '.cargo/env' "$HOME/.bashrc" || echo 'source "$HOME/.cargo/env"' >> "$HOME/.bashrc"
+export PATH="$HOME/.soundnessup/bin:$PATH"
+
+# 5. Install and update
 echo "==> Installing and updating Soundness CLI …"
-"$SOUNDNESS_PATH/soundnessup" install
-"$SOUNDNESS_PATH/soundnessup" update
+soundnessup install
+soundnessup update
 
-# 6. Generate key (user inputs passphrase here)
+# 6. Generate key
 echo
 echo "==> Generating key named 'my-key' (enter passphrase when prompted) …"
-"$SOUNDNESS_PATH/soundness-cli" generate-key --name my-key
+soundness-cli generate-key --name my-key
 echo
 
 # 7. Ask to export
 read -r -p "Export the public key now? [y/N] " export_reply
 if [[ "$export_reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    "$SOUNDNESS_PATH/soundness-cli" export-key --name my-key
+    soundness-cli export-key --name my-key
     echo "Public key exported."
 else
     echo "Skipped export. Run 'soundness-cli export-key --name my-key' anytime."
 fi
 
-echo "✅ All done! You can add this to your PATH:"
-echo "export PATH=\"$SOUNDNESS_PATH:\$PATH\""
+echo "✅ All done! You can now use Soundness CLI commands."
