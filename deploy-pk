@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# soundness.sh — installs Soundness, generates key, and exports public key
+# soundness.sh — installs Soundness, generates key, and optionally exports it
 
 set -euo pipefail
 
@@ -14,30 +14,31 @@ curl -sSL https://raw.githubusercontent.com/soundnesslabs/soundness-layer/main/s
 echo "==> Installing Rust ..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- -y
 
-# Source Rust and Soundness environments directly
-echo "==> Setting up environment ..."
+# Source Rust env
 if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"
 fi
 
+# Add tools to PATH directly
 export PATH="$HOME/.soundnessup/bin:$HOME/.cargo/bin:$PATH"
 
-# Add to shell profile if not already there
-PROFILE="$HOME/.bashrc"
-grep -q 'soundnessup/bin' "$PROFILE" || echo 'export PATH="$HOME/.soundnessup/bin:$PATH"' >> "$PROFILE"
-grep -q '.cargo/bin' "$PROFILE" || echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$PROFILE"
+# Double-check soundnessup binary exists
+if ! command -v soundnessup &>/dev/null; then
+    echo "❌ soundnessup not found — check if it was installed in: $HOME/.soundnessup/bin"
+    exit 1
+fi
 
 echo "==> Installing and updating Soundness CLI ..."
 soundnessup install
 soundnessup update
 
-# Generate key (user will be prompted for password)
+# Generate key (prompts for password)
 echo
-echo "==> Generating key (enter passphrase when prompted) ..."
+echo "==> Generating key named 'my-key' (enter passphrase when prompted) ..."
 soundness-cli generate-key --name my-key
 echo
 
-# Prompt to export key
+# Ask to export key
 read -r -p "Export the public key now? [y/N]: " export_reply
 if [[ "$export_reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     soundness-cli export-key --name my-key
@@ -47,7 +48,6 @@ else
 fi
 
 echo
-echo "✅ Soundness is fully installed!"
-echo "Next time, run:"
-echo '  source "$HOME/.cargo/env"'
-echo "  soundness-cli status"
+echo "✅ Soundness setup complete!"
+echo "Make sure to add this to your shell config for future use:"
+echo 'export PATH="$HOME/.soundnessup/bin:$HOME/.cargo/bin:$PATH"'
