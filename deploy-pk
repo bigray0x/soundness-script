@@ -17,21 +17,24 @@ sudo apt install -y build-essential protobuf-compiler curl wget pkg-config \
 echo "==> Installing soundnessup …"
 curl -sSL https://raw.githubusercontent.com/soundnesslabs/soundness-layer/main/soundnessup/install | bash
 
-# 3. Source bashrc to pick up soundnessup path immediately
-echo "==> Reloading shell environment to recognize soundnessup …"
-source "$HOME/.bashrc"
+# 3. Manually export path instead of sourcing bashrc
+echo "==> Setting up environment for soundnessup …"
+export PATH="$HOME/.soundnessup/bin:$PATH"
+if ! grep -q 'soundnessup/bin' "$HOME/.bashrc"; then
+  echo 'export PATH="$HOME/.soundnessup/bin:$PATH"' >> "$HOME/.bashrc"
+fi
 
 # 4. Install Rust
 echo "==> Installing Rust …"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- -y
 source "$HOME/.cargo/env"
 
-# 5. Add soundnessup to PATH permanently if not already
-export PATH="$HOME/.soundnessup/bin:$PATH"
-grep -q 'soundnessup/bin' "$HOME/.bashrc" || \
-  echo 'export PATH="$HOME/.soundnessup/bin:$PATH"' >> "$HOME/.bashrc"
+# 5. Ensure Rust path persists
+if ! grep -q '.cargo/env' "$HOME/.bashrc"; then
+  echo 'source "$HOME/.cargo/env"' >> "$HOME/.bashrc"
+fi
 
-# 6. Run soundnessup install
+# 6. Run soundnessup install & update
 echo "==> Installing and updating Soundness CLI …"
 soundnessup install
 soundnessup update
@@ -51,4 +54,4 @@ else
     echo "Skipped export. Run 'soundness-cli export-key --name my-key' anytime."
 fi
 
-echo "✅ Done!"
+echo "✅ All done! Restart your terminal to activate full environment."
