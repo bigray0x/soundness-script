@@ -1,60 +1,88 @@
 #!/usr/bin/env bash
-# Fixed Soundness installation script
+# soundness.sh – install Soundness, create a key, optionally export the pubkey
 
 set -euo pipefail
 
-echo "==> Updating system and installing dependencies ..."
+# ---------- helper -----------------------------------------------------------
+die() { echo -e "❌  $*" >&2; exit 1; }
+
+log() { printf '\n\033[1;34m==> %s …\033[0m\n' "$*"; }
+
+ensure_path() {
+  local line=$1
+  local profile=$2
+  grep -Fq "$line" "$profile" || echo "$line" >> "$profile"
+}
+# -----------------------------------------------------------------------------
+
+
+log "Updating system and installing build tools"
 apt update && apt upgrade -y
 apt install -y build-essential protobuf-compiler curl wget pkg-config \
-    libcrypto++-dev libc6-dev openssl libssl-dev
+               libcrypto++-dev libc6-dev openssl libssl-dev
 
-echo "==> Installing soundnessup ..."
+# 1. Soundness bootstrap ------------------------------------------------------
+log "Installing soundnessup"
 curl -sSL https://raw.githubusercontent.com/soundnesslabs/soundness-layer/main/soundnessup/install | bash
 
-echo "==> Installing Rust ..."
+# 2. Rust toolchain -----------------------------------------------------------
+log "Installing Rust toolchain"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- -y
 
-# Source Rust environment
-if [ -f "$HOME/.cargo/env" ]; then
-    source "$HOME/.cargo/env"
-fi
+# 3. Load Rust env now (needed for cargo-built CLI tools)
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
-# Attempt to source .bashrc ONLY if PS1 is already defined
-if [ -n "${PS1:-}" ]; then
-    source "$HOME/.bashrc" || true
-fi
-
-# Manually export path additions
+# 4. STITCH the PATH for THIS script run --------------------------------------
 export PATH="$HOME/.soundnessup/bin:$HOME/.cargo/bin:$PATH"
 
-# Run soundnessup once to ensure setup completes
-echo "==> Running soundnessup once to initialize environment ..."
-"$HOME/.soundnessup/bin/soundnessup" || true
+# 5. Safely source .bashrc so PATH lines added by the installer take effect ---
+log "Reloading profile to pick up installer PATH lines (shielding PS1)"
+(
+  set +u                 # allow unset vars temporarily
+  export PS1=""          # avoid PS1 unbound error
+  source "$HOME/.bashrc" || true
+)
 
-# Check again if command is now available
+# 6. Locate soundnessup binary -------------------------------------------------
 if ! command -v soundnessup &>/dev/null; then
-    echo "❌ soundnessup still not available — something went wrong with setup"
-    exit 1
+  # fall-back scan (covers odd install locations)
+  SOUND_BIN=$(find "$HOME" -type f -name soundnessup -perm -u=x 2>/dev/null | head -n1 || true)
+  [[ -n "$SOUND_BIN" ]] || die "soundnessup not found after install"
+  export PATH="$(dirname "$SOUND_BIN"):$PATH"
 fi
 
-echo "==> Installing and updating Soundness CLI ..."
+# 7. First-time initialisation -------------------------------------------------
+log "Running soundnessup (first-time initialisation)"
+soundnessup --help >/dev/null || die "soundnessup failed to start"
+
+# 8. Install / update Soundness CLI -------------------------------------------
+log "Installing & updating Soundness CLI"
 soundnessup install
 soundnessup update
 
+# 9. Key generation -----------------------------------------------------------
 echo
-echo "==> Generating key named 'my-key' (enter passphrase when prompted) ..."
+log "Generating key named 'my-key' (enter a passphrase twice)"
 soundness-cli generate-key --name my-key
-echo
 
-read -r -p "Export the public key now? [y/N]: " export_reply
-if [[ "$export_reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    soundness-cli export-key --name my-key
-    echo "✅ Public key exported."
+# 10. Optional public-key export ----------------------------------------------
+echo
+read -r -p "Export the public key now? [y/N]: " reply
+if [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+  soundness-cli export-key --name my-key
+  echo "✅  Public key exported (file: ./my-key.pub)"
 else
-    echo "ℹ️ Skipped export. You can run: soundness-cli export-key --name my-key"
+  echo "ℹ️  Skipped export. You can run 'soundness-cli export-key --name my-key' later."
 fi
 
-echo
-echo "✅ Soundness setup complete!"
-echo "Make sure to add this to your shell config for future use:"
-echo 'export PATH="$HOME/.soundnessup/bin:$HOME/.cargo/bin:$PATH"'
+# 11. Persist PATH changes so future shells see the tools ----------------------
+PROFILE="$HOME/.bashrc"
+ensure_path 'export PATH="$HOME/.soundnessup/bin:$PATH"' "$PROFILE"
+ensure_path 'export PATH="$HOME/.cargo/bin:$PATH"' "$PROFILE"
+ensure_path 'source "$HOME/.cargo/env"' "$PROFILE"
+
+# 12. Finish -------------------------------------------------------------------
+echo -e "\n✅  Soundness installation finished!"
+echo "Open a **new** terminal or run:"
+echo '  source "$HOME/.cargo/env"'
+echo "before using Soundness commands."
