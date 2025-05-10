@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# soundness.sh — installs Soundness, generates key, and optionally exports it
+# Fixed Soundness installation script
 
 set -euo pipefail
 
@@ -14,17 +14,26 @@ curl -sSL https://raw.githubusercontent.com/soundnesslabs/soundness-layer/main/s
 echo "==> Installing Rust ..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- -y
 
-# Source Rust env
+# Source Rust environment
 if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"
 fi
 
-# Add tools to PATH directly
+# Attempt to source .bashrc ONLY if PS1 is already defined
+if [ -n "${PS1:-}" ]; then
+    source "$HOME/.bashrc" || true
+fi
+
+# Manually export path additions
 export PATH="$HOME/.soundnessup/bin:$HOME/.cargo/bin:$PATH"
 
-# Double-check soundnessup binary exists
+# Run soundnessup once to ensure setup completes
+echo "==> Running soundnessup once to initialize environment ..."
+"$HOME/.soundnessup/bin/soundnessup" || true
+
+# Check again if command is now available
 if ! command -v soundnessup &>/dev/null; then
-    echo "❌ soundnessup not found — check if it was installed in: $HOME/.soundnessup/bin"
+    echo "❌ soundnessup still not available — something went wrong with setup"
     exit 1
 fi
 
@@ -32,13 +41,11 @@ echo "==> Installing and updating Soundness CLI ..."
 soundnessup install
 soundnessup update
 
-# Generate key (prompts for password)
 echo
 echo "==> Generating key named 'my-key' (enter passphrase when prompted) ..."
 soundness-cli generate-key --name my-key
 echo
 
-# Ask to export key
 read -r -p "Export the public key now? [y/N]: " export_reply
 if [[ "$export_reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     soundness-cli export-key --name my-key
