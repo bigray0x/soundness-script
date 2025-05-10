@@ -16,6 +16,15 @@ ensure_path() {
 # -----------------------------------------------------------------------------
 
 
+# ---------- banner -----------------------------------------------------------
+clear
+echo -e "\033[1;35m============================================\033[0m"
+echo -e "\033[1;32m   SOUNDNESS PK DEPLOYMENT SCRIPT BY BIGRAY0X\033[0m"
+echo -e "\033[1;35m============================================\033[0m"
+echo
+# -----------------------------------------------------------------------------
+
+
 log "Updating system and installing build tools"
 apt update && apt upgrade -y
 apt install -y build-essential protobuf-compiler curl wget pkg-config \
