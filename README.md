@@ -27,11 +27,11 @@ save both keys somewhere safe.
 
 ### Step 2: Register your public key for testnet whitelist
 
-join [discord](https://discord.gg/soundnesslabs)
+A: join [discord](https://discord.gg/soundnesslabs)
 
-head to #soundness-cockpit 
+B: head to #soundness-cockpit 
 
-use the /acess (your public key) here to register for testnet WL access.  
+C: use the /acess (your public key) here to register for testnet WL access.  
 
 other available commands :
 
@@ -50,3 +50,5 @@ other available commands :
 `/unlink_telegram` — Unlink your Telegram account  
 
 
+for more scripts follow my [Github](https://github.com/bigray0x)
+my X account [twitter](x.com/bigray0x) 
