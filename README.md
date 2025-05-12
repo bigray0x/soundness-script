@@ -10,7 +10,7 @@ it does the followng :
 
 Pre-requisites :
 
-Linux based systems, MacOS, Github codespace or gitpod will work.
+Linux based systems, Github codespace or gitpod will work.
 
 ## how to use
 
