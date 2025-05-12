@@ -33,6 +33,7 @@ B: head to #soundness-cockpit
 
 C: use the /acess (your public key) here to register for testnet WL access.  
 
+D: Join waitlist : [soundness.com](https://soundness.xyz)
 other available commands :
 
 `/access` - Share your public key to join our exclusive whitelist
